@@ -15,7 +15,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
-import com.carrotsearch.junitbenchmarks.BenchmarkOptions;
 
 public class ReadAndOpen extends AbstractBenchmark {
 
@@ -23,7 +22,7 @@ public class ReadAndOpen extends AbstractBenchmark {
 	 * The size of the large file that will be created in bytes. We'll be
 	 * creating a single file of this size, and a bunch of files whose total
 	 * size equals this size, so we'll be using 2*TOTAL_FILE_SIZE space on the
-	 * ramdisk.
+	 * disk.
 	 */
 	public static final int TOTAL_FILE_SIZE = (int) (2 * Math.pow(2, 20));
 
@@ -44,38 +43,42 @@ public class ReadAndOpen extends AbstractBenchmark {
 	public static final byte[] WRITE_BYTES = new byte[SPLIT_FILE_SIZE];
 
 	/*
-	 * Deletes all the large and small files from the root directory.
+	 * Deletes all the large and small files from the root directories.
 	 */
-	public static void clearRoot() throws IOException {
-		for (Path p : Files.newDirectoryStream(Paths.get(TestUtils.ROOT),
-				"*.txt")) {
-			Files.delete(p);
+	public static void clearDirs() throws IOException {
+		for (String dir : TestUtils.dirs) {
+			for (Path p : Files.newDirectoryStream(Paths.get(dir), "*.txt")) {
+				Files.delete(p);
+			}
 		}
 	}
 
 	/*
-	 * Here we clear the ROOT directory and create the large and split files. We
-	 * create one large file of size TOTAL_FILE_SIZE and SPLIT_FILE_NUM files of
-	 * size SPLIT_FILE_SIZE.
+	 * Here we clear the root directories and create the large and split files.
+	 * We create one large file of size TOTAL_FILE_SIZE and SPLIT_FILE_NUM files
+	 * of size SPLIT_FILE_SIZE.
 	 */
 	@BeforeClass
 	public static void setUpBeforeClass() throws Exception {
-		clearRoot();
-		OutputStream out = Files.newOutputStream(TestUtils.largeFilePath());
-		for (int i = 0; i < SPLIT_FILE_NUM; ++i) {
-			out.write(WRITE_BYTES, 0, SPLIT_FILE_SIZE);
-		}
-		out.close();
-		for (int i = 0; i < SPLIT_FILE_NUM; ++i) {
-			out = Files.newOutputStream(TestUtils.smallFilePath(i));
-			out.write(WRITE_BYTES, 0, SPLIT_FILE_SIZE);
+		clearDirs();
+		for (String dir : TestUtils.dirs) {
+			OutputStream out = Files.newOutputStream(TestUtils
+					.largeFilePath(dir));
+			for (int i = 0; i < SPLIT_FILE_NUM; ++i) {
+				out.write(WRITE_BYTES, 0, SPLIT_FILE_SIZE);
+			}
 			out.close();
+			for (int i = 0; i < SPLIT_FILE_NUM; ++i) {
+				out = Files.newOutputStream(TestUtils.smallFilePath(dir, i));
+				out.write(WRITE_BYTES, 0, SPLIT_FILE_SIZE);
+				out.close();
+			}
 		}
 	}
 
 	@AfterClass
 	public static void tearDownAfterClass() throws Exception {
-		clearRoot();
+		clearDirs();
 	}
 
 	@Before
@@ -89,10 +92,9 @@ public class ReadAndOpen extends AbstractBenchmark {
 	/*
 	 * Tests opening and reading the large file, making sure the contents match.
 	 */
-	@Test
-	public void testOpenAndReadLarge() throws InterruptedException, IOException {
+	public void testOpenAndReadLarge(String dir) throws InterruptedException, IOException {
 		byte[] readBytes = new byte[WRITE_BYTES.length];
-		InputStream in = Files.newInputStream(TestUtils.largeFilePath());
+		InputStream in = Files.newInputStream(TestUtils.largeFilePath(dir));
 		int ret = in.read(readBytes);
 		while (ret != -1) {
 			assertArrayEquals(WRITE_BYTES, readBytes);
@@ -100,16 +102,25 @@ public class ReadAndOpen extends AbstractBenchmark {
 		}
 		in.close();
 	}
+	
+	@Test
+	public void testOpenAndReadLargeRD() throws InterruptedException, IOException {
+		testOpenAndReadLarge(TestUtils.dirs[TestUtils.RD_IND]);
+	}
+	
+	@Test
+	public void testOpenAndReadLargeHD() throws InterruptedException, IOException {
+		testOpenAndReadLarge(TestUtils.dirs[TestUtils.HD_IND]);
+	}
 
 	/*
 	 * Tests opening and reading each of the small files, making sure the
 	 * contents match.
 	 */
-	@Test
-	public void testOpenAndReadSmalls() throws IOException {
+	public void testOpenAndReadSmalls(String dir) throws IOException {
 		byte[] readBytes = new byte[WRITE_BYTES.length];
 		for (int i = 0; i < SPLIT_FILE_NUM; ++i) {
-			InputStream in = Files.newInputStream(TestUtils.smallFilePath(i));
+			InputStream in = Files.newInputStream(TestUtils.smallFilePath(dir, i));
 			int ret = in.read(readBytes);
 			while (ret != -1) {
 				assertArrayEquals(WRITE_BYTES, readBytes);
@@ -117,6 +128,16 @@ public class ReadAndOpen extends AbstractBenchmark {
 			}
 			in.close();
 		}
+	}
+	
+	@Test
+	public void testOpenAndReadSmallsRD() throws InterruptedException, IOException {
+		testOpenAndReadSmalls(TestUtils.dirs[TestUtils.RD_IND]);
+	}
+	
+	@Test
+	public void testOpenAndReadSmallsHD() throws InterruptedException, IOException {
+		testOpenAndReadSmalls(TestUtils.dirs[TestUtils.HD_IND]);
 	}
 
 	/*
@@ -141,25 +162,33 @@ public class ReadAndOpen extends AbstractBenchmark {
 	/*
 	 * Tests reading a fraction of the large file from a random offset.
 	 */
-	@Test
-	public void testReadFractionLargeFile() throws IOException {
+	public void testReadFractionLargeFile(String dir) throws IOException {
 		int offset = getLargeFileOffset();
 		byte[] readBytes = new byte[(int) (TOTAL_FILE_SIZE * fractionalRead)];
 		byte[] expected = new byte[readBytes.length];
-		InputStream in = Files.newInputStream(TestUtils.largeFilePath());
+		InputStream in = Files.newInputStream(TestUtils.largeFilePath(dir));
 		assertEquals(offset, in.skip(offset));
 		assertNotEquals(-1, in.read(readBytes));
 		assertArrayEquals(expected, readBytes);
 		in.close();
 	}
-
+	
+	@Test
+	public void testReadFractionLargeFileRD() throws InterruptedException, IOException {
+		testReadFractionLargeFile(TestUtils.dirs[TestUtils.RD_IND]);
+	}
+	
+	@Test
+	public void testReadFractionLargeFileHD() throws InterruptedException, IOException {
+		testReadFractionLargeFile(TestUtils.dirs[TestUtils.HD_IND]);
+	}
+	
 	/*
 	 * Tests reading a fraction of the small files from a random offset. We will
 	 * be reading the same amount as testReadFractionLargeFile, but from the
 	 * small files instead of the large ones.
 	 */
-	@Test
-	public void testReadFractionSmallFiles() throws IOException {
+	public void testReadFractionSmallFiles(String dir) throws IOException {
 		int offset = getLargeFileOffset();
 		byte[] readBytes = new byte[(int) (TOTAL_FILE_SIZE * fractionalRead)];
 		int numReadBytes = 0;
@@ -171,7 +200,7 @@ public class ReadAndOpen extends AbstractBenchmark {
 			int smallFileIndex = (offset + numReadBytes) / SPLIT_FILE_SIZE;
 			int smallFileOffset = (offset + numReadBytes) % SPLIT_FILE_SIZE;
 			InputStream in = Files.newInputStream(TestUtils
-					.smallFilePath(smallFileIndex));
+					.smallFilePath(dir, smallFileIndex));
 			in.skip(smallFileOffset);
 			// We either read to the end of the file or the number of remaining
 			// bytes to get to readBytes.length
@@ -183,5 +212,15 @@ public class ReadAndOpen extends AbstractBenchmark {
 			in.close();
 		}
 		assertArrayEquals(expected, readBytes);
+	}
+	
+	@Test
+	public void testReadFractionSmallFilesRD() throws InterruptedException, IOException {
+		testReadFractionSmallFiles(TestUtils.dirs[TestUtils.RD_IND]);
+	}
+	
+	@Test
+	public void testReadFractionSmallFilesHD() throws InterruptedException, IOException {
+		testReadFractionSmallFiles(TestUtils.dirs[TestUtils.HD_IND]);
 	}
 }

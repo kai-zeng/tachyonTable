@@ -33,11 +33,11 @@ public class DirectoryOpenAndClose extends AbstractBenchmark {
 	 * The number of subdirectories to create. Subdirectory i will have 10^i
 	 * files.
 	 */
-	public static final int SUBDIRS = 4;
+	public static final int SUBDIRS = 6;
 
 	public static String getDirPath(int subdir) {
-		return Paths.get(TestUtils.ROOT, "dir-" + String.valueOf(subdir))
-				.toString();
+		return Paths.get(TestUtils.dirs[TestUtils.RD_IND],
+				"dir-" + String.valueOf(subdir)).toString();
 	}
 
 	/*
@@ -57,8 +57,8 @@ public class DirectoryOpenAndClose extends AbstractBenchmark {
 	}
 
 	public static void clearRoot() throws IOException {
-		for (Path dir : Files.newDirectoryStream(Paths.get(TestUtils.ROOT),
-				"dir-*")) {
+		for (Path dir : Files.newDirectoryStream(
+				Paths.get(TestUtils.dirs[TestUtils.RD_IND]), "dir-*")) {
 			for (Path file : Files.newDirectoryStream(dir)) {
 				Files.delete(file);
 			}
@@ -127,7 +127,16 @@ public class DirectoryOpenAndClose extends AbstractBenchmark {
 
 	@Test
 	public void testThree() throws IOException {
-		testGeneral(2);
+		testGeneral(3);
 	}
 
+	@Test
+	public void testFour() throws IOException {
+		testGeneral(4);
+	}
+
+	@Test
+	public void testFive() throws IOException {
+		testGeneral(5);
+	}
 }
