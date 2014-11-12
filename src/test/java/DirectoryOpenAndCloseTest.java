@@ -16,7 +16,7 @@ import org.junit.Test;
 
 import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
 
-public class DirectoryOpenAndClose extends AbstractBenchmark {
+public class DirectoryOpenAndCloseTest extends AbstractBenchmark {
 
 	/*
 	 * The size of the files to be creating. We'll be creating a lot of these,
