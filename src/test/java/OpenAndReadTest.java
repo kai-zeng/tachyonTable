@@ -1,11 +1,10 @@
-import java.io.File;
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.file.StandardOpenOption;
+import static org.junit.Assert.*;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
+import java.io.IOException;
+import java.io.File;
+import java.io.RandomAccessFile;
+import java.nio.file.Files;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -13,31 +12,32 @@ import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
 import com.carrotsearch.junitbenchmarks.BenchmarkOptions;
 
 @BenchmarkOptions(callgc = false, benchmarkRounds = 1, warmupRounds = 0)
-public class OpenAndCloseTest extends AbstractBenchmark {
-
+public class OpenAndReadTest extends AbstractBenchmark {
   private static int[] numFilesArr = {10, 100, 1000, 10000, 100000, 200000,
                                       300000, 400000, 800000, 1000000,
                                       2000000, 4000000};
 
   @BeforeClass
-  public static void setupBeforeClass() throws IOException {
+  public static void setUpBeforeClass() throws Exception {
     for (int numFiles : numFilesArr) {
       TestUtils.createDir(numFiles);
     }
   }
 
   /*
-   * Tests opening and closing files n files in one directory.
+   * Tests opening and reading files numFiles files in one directory.
    */
   public void testGeneral(int numFiles) throws IOException {
     File testDir = new File(TestUtils.dirs[TestUtils.RD_IND], String.valueOf(numFiles));
+    byte[] readBytes = new byte[TestUtils.FILE_SIZE];
+    int off = 0;
     for (int i = 0; i < numFiles; ++i) {
       File f = new File(testDir, String.valueOf(i));
       RandomAccessFile raf = new RandomAccessFile(f, "r");
+      off += raf.read(readBytes, 0, readBytes.length - off);
       raf.close();
     }
   }
-
 
   @Test
   public void testTen() throws IOException {
@@ -84,19 +84,18 @@ public class OpenAndCloseTest extends AbstractBenchmark {
     testGeneral(800000);
   }
 
- @Test
- public void testOneMillion() throws IOException {
-   testGeneral(1000000);
- }
-
- @Test
- public void testTwoMillion() throws IOException {
-   testGeneral(2000000);
- }
+  @Test
+  public void testOneMillion() throws IOException {
+    testGeneral(1000000);
+  }
 
   @Test
- public void testFourMillion() throws IOException {
-   testGeneral(4000000);
- }
+  public void testTwoMillion() throws IOException {
+    testGeneral(2000000);
+  }
 
+  @Test
+  public void testFourMillion() throws IOException {
+    testGeneral(4000000);
+  }
 }
